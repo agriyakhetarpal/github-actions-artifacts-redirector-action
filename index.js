@@ -54,6 +54,14 @@ async function run() {
     );
     core.debug(`head SHA: ${sha}  run ID: ${runId}`);
 
+    // Don't post a status for cancelled/skipped runs. They are not real failures,
+    // just a superseded run. Posting errors are causing some strange misleading red commit
+    // statuses don't reflect the real state of the CI.
+    if (conclusion === "cancelled" || conclusion === "skipped") {
+      core.info(`Workflow run was ${conclusion}, skipping status update`);
+      return;
+    }
+
     // ------------------------------------------------------------------
     // 1. Map workflow_run state → commit status state
     //    pending  → workflow hasn't finished yet

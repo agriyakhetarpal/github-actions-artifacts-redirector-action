@@ -31705,7 +31705,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -36070,6 +36070,14 @@ async function run() {
     );
     core_debug(`head SHA: ${sha}  run ID: ${runId}`);
 
+    // Don't post a status for cancelled/skipped runs. They are not real failures,
+    // just a superseded run. Posting errors are causing some strange misleading red commit
+    // statuses don't reflect the real state of the CI.
+    if (conclusion === "cancelled" || conclusion === "skipped") {
+      info(`Workflow run was ${conclusion}, skipping status update`);
+      return;
+    }
+
     // ------------------------------------------------------------------
     // 1. Map workflow_run state → commit status state
     //    pending  → workflow hasn't finished yet
@@ -36078,7 +36086,9 @@ async function run() {
     //    error    → anything else (cancelled, timed_out, etc.)
     // ------------------------------------------------------------------
     let commitState;
-    if (conclusion === "success") {
+    if (runStatus !== "completed") {
+      commitState = "pending";
+    } else if (conclusion === "success") {
       commitState = "success";
     } else if (conclusion === "failure") {
       commitState = "failure";
