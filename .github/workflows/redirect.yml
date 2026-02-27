@@ -3,7 +3,7 @@ name: GitHub artifacts redirector (self-test)
 on:
   workflow_run:
     workflows: ["Build test artifact"] # matches `name:` in build.yml exactly
-    types: [requested, in_progress, completed]
+    types: [completed]
 
 permissions: read-all
 
@@ -13,6 +13,7 @@ jobs:
     permissions:
       statuses: write
       actions: read
+      contents: read
 
     steps:
       - name: Print event data

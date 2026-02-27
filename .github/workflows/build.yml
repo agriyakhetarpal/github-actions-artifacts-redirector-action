@@ -1,58 +1,34 @@
-name: GitHub artifacts redirector (self-test)
+name: Build test artifact
 
 on:
-  workflow_run:
-    workflows: ["Build test artifact"] # matches `name:` in build.yml exactly
-    types: [requested, in_progress, completed]
-
-permissions: read-all
+  pull_request:
+    branches: ["*"]
+  push:
+    branches: [main]
 
 jobs:
-  github_artifacts_redirector_self_test:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      statuses: write
-      actions: read
-
+      contents: read
     steps:
-      - name: Print event data
+      - uses: actions/checkout@v4
+
+      # Inject the commit SHA into the static test HTML file and write to
+      # a separate output directory so the source file stays clean.
+      # In a real project this step would be `sphinx-build -b singlehtml ...`
+      - name: Create test artifact
         env:
-          GITHUB_EVENT: ${{ toJSON(github.event) }}
-        run: echo "$GITHUB_EVENT"
-
-      # WARNING:
-      # This repo uses the action from its own root directory for self-testing.
-      # GitHub Action users should NOT do this — use the published tag instead:
-      #   uses: scientific-python/github-artifacts-redirector-action@v1
-      #
-      # We check out the head_sha of the workflow that triggered us (i.e. the
-      # PR branch) so that `uses: ./` below runs the PR's version of the action,
-      # not main's. This lets us test changes to index.js / dist/index.js on a
-      # PR before merging.
-      - name: Checkout PR code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-
-      - name: Confirm checked-out commit
-        run: git log -n 1
-
-      # uses: ./ runs dist/index.js from the checked-out repo root —
-      # i.e. the PR's version of the action.
-      - name: Run the redirector action
-        id: redirector
-        uses: ./
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          artifact-name: preview
-          job-title: "See artifact here (self-test)!"
-
-      # Smoke-test: once the build is complete and we have a URL,
-      # verify the artifact is actually reachable.
-      - name: Check the artifact URL
-        if: github.event.workflow_run.conclusion == 'success'
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          echo "Artifact URL: ${{ steps.redirector.outputs.url }}"
-          curl --fail --location \
-            --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            "${{ steps.redirector.outputs.url }}" | grep "${{ github.event.workflow_run.head_sha }}"
+          mkdir -p dist_artifacts
+          envsubst '$COMMIT_SHA' < test_artifacts/preview.html > dist_artifacts/preview.html
+
+      # upload-artifact@v7 with archive: false — single file, browser-viewable
+      - name: Upload test artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist_artifacts/preview.html
+          archive: false
+          retention-days: 14
+          # artifact name will be "preview" (filename without extension)
