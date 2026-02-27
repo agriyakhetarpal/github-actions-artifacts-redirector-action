@@ -36078,9 +36078,7 @@ async function run() {
     //    error    → anything else (cancelled, timed_out, etc.)
     // ------------------------------------------------------------------
     let commitState;
-    if (runStatus !== "completed") {
-      commitState = "pending";
-    } else if (conclusion === "success") {
+    if (conclusion === "success") {
       commitState = "success";
     } else if (conclusion === "failure") {
       commitState = "failure";
