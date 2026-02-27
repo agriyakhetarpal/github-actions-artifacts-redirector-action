@@ -26,9 +26,8 @@ jobs:
 
       # upload-artifact@v7 with archive: false — single file, browser-viewable
       - name: Upload test artifact
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v6
         with:
           path: dist_artifacts/preview.html
-          archive: false
           retention-days: 14
           # artifact name will be "preview" (filename without extension)
