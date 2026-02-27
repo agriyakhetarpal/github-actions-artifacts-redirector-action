@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>github-actions-artifacts-redirector-action · preview</title>
+    <style>
+      @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,300;0,400;0,500;1,300&family=IBM+Plex+Sans:wght@300;400&display=swap");
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      :root {
+        --bg: #0d1117;
+        --bg2: #161b22;
+        --bg3: #21262d;
+        --border: #30363d;
+        --green: #3fb950;
+        --green2: #238636;
+        --blue: #58a6ff;
+        --purple: #bc8cff;
+        --yellow: #d29922;
+        --text: #e6edf3;
+        --muted: #8b949e;
+        --mono: "IBM Plex Mono", monospace;
+        --sans: "IBM Plex Sans", sans-serif;
+      }
+
+      html {
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--mono);
+      }
+
+      body {
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 3rem 1.5rem 5rem;
+        background:
+          radial-gradient(
+            ellipse 80% 50% at 50% -10%,
+            rgba(63, 185, 80, 0.12),
+            transparent
+          ),
+          radial-gradient(
+            ellipse 60% 40% at 80% 100%,
+            rgba(88, 166, 255, 0.07),
+            transparent
+          ),
+          var(--bg);
+      }
+
+      /* ── header ─────────────────────────────────────────── */
+      header {
+        width: 100%;
+        max-width: 780px;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 3.5rem;
+        animation: fadeDown 0.5s ease both;
+      }
+
+      .logo {
+        width: 40px;
+        height: 40px;
+        background: var(--green2);
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        flex-shrink: 0;
+        font-size: 1.2rem;
+      }
+
+      .repo-path {
+        font-size: 0.78rem;
+        color: var(--muted);
+        letter-spacing: 0.02em;
+      }
+      .repo-path span {
+        color: var(--blue);
+      }
+
+      /* ── hero ────────────────────────────────────────────── */
+      .hero {
+        width: 100%;
+        max-width: 780px;
+        margin-bottom: 2.5rem;
+        animation: fadeDown 0.5s 0.1s ease both;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        background: rgba(63, 185, 80, 0.12);
+        border: 1px solid rgba(63, 185, 80, 0.3);
+        border-radius: 2em;
+        padding: 0.3rem 0.9rem;
+        font-size: 0.72rem;
+        color: var(--green);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 1.5rem;
+      }
+
+      .dot {
+        width: 7px;
+        height: 7px;
+        background: var(--green);
+        border-radius: 50%;
+        animation: pulse 1.8s ease infinite;
+      }
+
+      h1 {
+        font-family: var(--mono);
+        font-weight: 500;
+        font-size: clamp(1.5rem, 4vw, 2.2rem);
+        line-height: 1.25;
+        color: var(--text);
+        margin-bottom: 0.75rem;
+      }
+
+      h1 .accent {
+        color: var(--green);
+      }
+
+      .subtitle {
+        font-family: var(--sans);
+        font-weight: 300;
+        font-size: 1rem;
+        color: var(--muted);
+        line-height: 1.6;
+        max-width: 540px;
+      }
+
+      /* ── card grid ───────────────────────────────────────── */
+      .cards {
+        width: 100%;
+        max-width: 780px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1px;
+        background: var(--border);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        animation: fadeUp 0.5s 0.2s ease both;
+      }
+
+      .card {
+        background: var(--bg2);
+        padding: 1.4rem 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+
+      .card:hover {
+        background: var(--bg3);
+        transition: background 0.15s;
+      }
+
+      .card-label {
+        font-size: 0.68rem;
+        color: var(--muted);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .card-value {
+        font-size: 0.88rem;
+        color: var(--text);
+        word-break: break-all;
+      }
+
+      .card-value.sha {
+        color: var(--purple);
+      }
+      .card-value.green {
+        color: var(--green);
+      }
+      .card-value.blue {
+        color: var(--blue);
+      }
+
+      /* ── footer ──────────────────────────────────────────── */
+      footer {
+        width: 100%;
+        max-width: 780px;
+        margin-top: 4rem;
+        font-size: 0.72rem;
+        color: var(--muted);
+        text-align: center;
+        letter-spacing: 0.04em;
+        animation: fadeUp 0.5s 0.5s ease both;
+      }
+
+      footer a {
+        color: var(--blue);
+        text-decoration: none;
+      }
+      footer a:hover {
+        text-decoration: underline;
+      }
+
+      /* ── keyframes ───────────────────────────────────────── */
+      @keyframes fadeDown {
+        from {
+          opacity: 0;
+          transform: translateY(-12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes fadeUp {
+        from {
+          opacity: 0;
+          transform: translateY(12px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.35;
+        }
+      }
+
+      /* ── responsive ──────────────────────────────────────── */
+      @media (max-width: 540px) {
+        .cards {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="logo">✦</div>
+      <div>
+        <div class="repo-path">
+          <span>agriyakhetarpal</span> / github-actions-artifacts-redirector-action
+        </div>
+      </div>
+    </header>
+
+    <section class="hero">
+      <div class="status-badge">
+        <div class="dot"></div>
+        artifact preview active
+      </div>
+      <h1>It <span class="accent">works!</span></h1>
+      <p class="subtitle">
+        This HTML file was uploaded as an unzipped GitHub Actions artifact and
+        opened directly in your browser when you clicked the "See artifact
+        here!" link in the commit status.
+      </p>
+    </section>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-label">commit</div>
+        <div class="card-value sha">$COMMIT_SHA</div>
+      </div>
+      <div class="card">
+        <div class="card-label">workflow</div>
+        <div class="card-value blue">Build test artifact for previewing</div>
+      </div>
+      <div class="card">
+        <div class="card-label">upload method</div>
+        <div class="card-value green">
+          <code>actions/upload-artifact@v7</code> with
+          <code>archive: false</code>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">artifact name</div>
+        <div class="card-value">preview</div>
+      </div>
+    </div>
+
+    <footer>
+      <a
+        href="https://github.com/agriyakhetarpal/github-actions-artifacts-redirector-action"
+      >
+        agriyakhetarpal/github-actions-artifacts-redirector-action
+      </a>
+      • BSD-3-Clause license • rendered directly via
+      <code>actions/upload-artifact@v7</code> and <code>archive: false</code>
+    </footer>
+  </body>
+</html>

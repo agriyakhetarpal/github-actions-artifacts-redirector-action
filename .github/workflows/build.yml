@@ -1,0 +1,39 @@
+name: Build test artifact for previewing
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Create a test artifact
+        env:
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p dist_artifacts
+          envsubst '$COMMIT_SHA' < test_artifacts/preview.html > dist_artifacts/preview.html
+          echo "Simulating a long artifact build... but not too long :D"
+          sleep 60
+
+      - name: Upload the test artifact
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          path: dist_artifacts/preview.html
+          archive: false
+          retention-days: 14

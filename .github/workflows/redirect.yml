@@ -1,0 +1,84 @@
+name: GitHub Actions artifacts redirector self-test
+
+on:
+  workflow_run:
+    workflows: ["Build test artifact for previewing"] # note: should match the `name:` field in `build.yml`
+    types: [requested, in_progress, completed]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  github_artifacts_redirector_self_test:
+    name: Redirect
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write # to update commit status checks
+      actions: read # to fetch the action code from the repo
+      contents: read
+
+    steps:
+      - name: Print event data
+        env:
+          GITHUB_EVENT: ${{ toJSON(github.event) }}
+        run: echo "$GITHUB_EVENT"
+
+      # This repo uses the action from its own root directory for self-testing.
+      # GitHub Action users should NOT do this — use the published tag instead:
+      #   uses: agriyakhetarpal/github-actions-artifacts-redirector-action@v1
+      #
+      # We check out the head_sha of the workflow that triggered us (i.e. the
+      # PR branch) so that `uses: ./` below runs the PR's version of the action,
+      # not main's. This lets us test changes to index.js / dist/index.js on a
+      # PR before merging.
+      #
+      # Some security stuff: We only do this for same-repo PRs (i.e. trusted contributors
+      # with push access). For fork PRs, we check out main instead. This prevents
+      # a malicious fork from injecting arbitrary code into dist/index.js and
+      # having it run here with statuses: write + actions: read permissions.
+      # Fork PRs still get a commit status posted (using main's action), they
+      # just don't self-test their changes to the action itself — an acceptable
+      # trade-off given that action maintainers review dist/ before merging anyway.
+      - name: Checkout PR code (same-repo branches only)
+        if: github.event.workflow_run.head_repository.full_name == github.repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+
+      - name: Checkout main code (fork PRs)
+        if: github.event.workflow_run.head_repository.full_name != github.repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Confirm checked-out commit
+        run: git log -n 1
+
+      # uses: ./ runs dist/index.js from the checked-out repo root —
+      # i.e. the PR's version of the action for same-repo branches,
+      # or main's version for fork PRs (see checkout steps above).
+      - name: Run the redirector action
+        id: redirector
+        uses: ./
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          artifact-name: preview
+          job-title: "See artifact here (self-test)!"
+
+      # Let's do a smoke-test: once the build is complete and we have a URL,
+      # verify the artifact is reachable to us.
+      - name: Check the artifact URL
+        if: github.event.workflow_run.conclusion == 'success'
+        run: |
+          echo "Artifact URL: ${STEPS_REDIRECTOR_OUTPUTS_URL}"
+          curl --fail --location \
+            --header "Authorization: Bearer ${SECRETS_GITHUB_TOKEN}" \
+            "${STEPS_REDIRECTOR_OUTPUTS_URL}" | grep "${GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}"
+        env:
+          SECRETS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          STEPS_REDIRECTOR_OUTPUTS_URL: ${{ steps.redirector.outputs.url }}
+          GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}

@@ -31705,7 +31705,7 @@ function notice(message, properties = {}) {
  * @param message info message
  */
 function info(message) {
-    process.stdout.write(message + os.EOL);
+    process.stdout.write(message + external_os_namespaceObject.EOL);
 }
 /**
  * Begin an output group.
@@ -36016,20 +36016,22 @@ function getOctokit(token, options, ...additionalPlugins) {
 ;// CONCATENATED MODULE: ./index.js
 // github-actions-artifacts-redirector-action
 //
-// Mirrors the pattern of circleci-artifacts-redirector-action, but for
-// GitHub Actions artifacts. Triggered by the `workflow_run` event, it:
+// Inspired by https://github.com/scientific-python/circleci-artifacts-redirector-action/,
+// but for GitHub Actions artifacts. When it's triggered by the `workflow_run` event, it will:
 //
-//   1. Maps the workflow run state → GitHub commit status state
-//   2. Finds the artifact by name using the GitHub REST API
-//   3. Creates a commit status whose target_url points directly to the artifact
+//   1. map the workflow run state ➡️ GitHub commit status state
+//   2. find the artifact by name using the GitHub REST API
+//   3. create a commit status whose `target_url` points directly to the artifact. See
+//      https://docs.github.com/en/rest/commits/statuses?apiVersion=2022-11-28#about-commit-statuses
 //
-// This gives you a clickable check in the PR checks list that opens the
-// artifact (e.g. docs preview, coverage report) straight in the browser,
-// exactly the same UX as the CircleCI redirector.
+// This will give you a clickable check in the PR checks list on the commit and at
+// the bottom of the PR thread, that opens the artifact (e.g. docs preview, coverage report)
+// in a new tab in your browser. It's not perfect (e.g. no direct link to the artifact while the workflow is pending), but it's
+// in the veins of the GitHub UI and should help you get to the artifact faster by saving a few clicks!
 //
-// After changing this file, rebuild with:
+// N.B. after changing this file, rebuild it with:
 //   ncc build index.js
-// or let the autofix.ci bot do it on your PR.
+// or let the autofix.ci bot do it on your PR (TODO add autofix.ci config and set up bot permissions)
 
 
 
@@ -36056,8 +36058,8 @@ async function run() {
 
     const sha = workflowRun.head_sha;
     const runId = workflowRun.id;
-    const runStatus = workflowRun.status; // queued | in_progress | completed
-    const conclusion = workflowRun.conclusion; // success | failure | cancelled | … | null
+    const runStatus = workflowRun.status; // queued, in_progress, or completed
+    const conclusion = workflowRun.conclusion; // success, failure, cancelled,  …, or null
 
     const client = getOctokit(token);
     const owner = github_context.repo.owner;
@@ -36067,6 +36069,14 @@ async function run() {
       `workflow run: ${workflowRun.name}  status: ${runStatus}  conclusion: ${conclusion}`,
     );
     core_debug(`head SHA: ${sha}  run ID: ${runId}`);
+
+    // Don't post a status for cancelled/skipped runs. They are not real failures,
+    // just a superseded run. Posting errors are causing some strange misleading red commit
+    // statuses don't reflect the real state of the CI.
+    if (conclusion === "cancelled" || conclusion === "skipped") {
+      info(`Workflow run was ${conclusion}, skipping status update`);
+      return;
+    }
 
     // ------------------------------------------------------------------
     // 1. Map workflow_run state → commit status state
@@ -36094,7 +36104,7 @@ async function run() {
     //    - On success: find the artifact and point directly to it
     //    - On failure/error: point to the workflow run page
     // ------------------------------------------------------------------
-    let targetUrl = workflowRun.html_url; // safe fallback for all states
+    let targetUrl = workflowRun.html_url;
     let description = "";
 
     if (commitState === "pending") {
@@ -36115,7 +36125,8 @@ async function run() {
       let artifact = null;
 
       if (artifactName !== "") {
-        // Exact match first, then partial match
+        // Do an exact match on the artifact name, then a partial match if no exact match is found. This
+        // should allows some flexibility in the artifact name, e.g. to ignore a dynamic suffix.
         artifact = data.artifacts.find((a) => a.name === artifactName);
         if (!artifact) {
           artifact = data.artifacts.find((a) => a.name.includes(artifactName));
@@ -36135,10 +36146,10 @@ async function run() {
       }
 
       if (artifact) {
-        // Construct the standard GitHub artifact view URL.
-        // For upload-artifact@v7 with archive: false, GitHub serves the raw
+        // Construction for the standard GitHub artifact view URL.
+        // For upload-artifact@v7 with `archive: false`, GitHub serves the raw
         // file at this URL so the browser opens it directly (HTML, image, etc.)
-        // For v4/v5/v6 (zipped), this URL triggers a zip download.
+        // For v4/v5/v6 (zipped), this URL will trigger a zip download (TODO test if that will work or not).
         targetUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifact.id}`;
         description = `Link to ${artifact.name}`;
         setOutput("url", targetUrl);
@@ -36176,7 +36187,7 @@ async function run() {
       sha,
       state: commitState,
       target_url: targetUrl,
-      description: description.slice(0, 140), // GitHub enforces 140-char limit
+      description: description.slice(0, 140), // 140 char limit on description field
       context: jobTitle,
     });
 

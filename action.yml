@@ -1,0 +1,30 @@
+name: "github-actions-artifacts-redirector"
+description: "Create a commit status with a direct link to a GitHub Actions artifact"
+branding:
+  icon: check
+  color: blue
+author: "Agriya Khetarpal"
+inputs:
+  repo-token:
+    description: "The GITHUB_TOKEN secret"
+    required: true
+  artifact-name:
+    description: >
+      Name of the artifact to link to (as passed to upload-artifact `name:`).
+      If omitted, the first artifact found for the run is used.
+      If archive: false was used with upload-artifact@v7, the artifact name is
+      the filename (without extension) of the uploaded file.
+    required: false
+    default: ""
+  job-title:
+    description: >
+      The context label shown in the GitHub checks/status UI.
+      Defaults to "<workflow name> artifact".
+    required: false
+    default: ""
+outputs:
+  url:
+    description: "The direct URL to the artifact"
+runs:
+  using: "node24"
+  main: "dist/index.js"
