@@ -6,6 +6,10 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -23,6 +27,8 @@ jobs:
         run: |
           mkdir -p dist_artifacts
           envsubst '$COMMIT_SHA' < test_artifacts/preview.html > dist_artifacts/preview.html
+          echo "Simulating a long artifact build..."
+          sleep 60
 
       # upload-artifact@v7 with archive: false — single file, browser-viewable
       - name: Upload test artifact
