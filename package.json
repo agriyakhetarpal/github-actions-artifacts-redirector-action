@@ -1,0 +1,29 @@
+{
+  "name": "github-actions-artifacts-redirector-action",
+  "version": "1.0.0",
+  "description": "Create a GitHub commit status with a direct link to a GitHub Actions artifact",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "lint": "eslint index.js",
+    "package": "ncc build index.js -o dist",
+    "test": "eslint index.js && jest"
+  },
+  "keywords": [
+    "GitHub",
+    "Actions",
+    "artifacts",
+    "redirect"
+  ],
+  "author": "Agriya Khetarpal",
+  "license": "BSD-3-Clause",
+  "dependencies": {
+    "@actions/core": "^3.0.0",
+    "@actions/github": "^9.0.0"
+  },
+  "devDependencies": {
+    "@vercel/ncc": "^0.38.4",
+    "eslint": "^10.0.2",
+    "jest": "^30.2.0"
+  }
+}
