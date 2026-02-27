@@ -1,0 +1,58 @@
+name: GitHub artifacts redirector (self-test)
+
+on:
+  workflow_run:
+    workflows: ["Build test artifact"] # matches `name:` in build.yml exactly
+    types: [requested, in_progress, completed]
+
+permissions: read-all
+
+jobs:
+  github_artifacts_redirector_self_test:
+    runs-on: ubuntu-latest
+    permissions:
+      statuses: write
+      actions: read
+
+    steps:
+      - name: Print event data
+        env:
+          GITHUB_EVENT: ${{ toJSON(github.event) }}
+        run: echo "$GITHUB_EVENT"
+
+      # WARNING:
+      # This repo uses the action from its own root directory for self-testing.
+      # GitHub Action users should NOT do this — use the published tag instead:
+      #   uses: scientific-python/github-artifacts-redirector-action@v1
+      #
+      # We check out the head_sha of the workflow that triggered us (i.e. the
+      # PR branch) so that `uses: ./` below runs the PR's version of the action,
+      # not main's. This lets us test changes to index.js / dist/index.js on a
+      # PR before merging.
+      - name: Checkout PR code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+
+      - name: Confirm checked-out commit
+        run: git log -n 1
+
+      # uses: ./ runs dist/index.js from the checked-out repo root —
+      # i.e. the PR's version of the action.
+      - name: Run the redirector action
+        id: redirector
+        uses: ./
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          artifact-name: preview
+          job-title: "See artifact here (self-test)!"
+
+      # Smoke-test: once the build is complete and we have a URL,
+      # verify the artifact is actually reachable.
+      - name: Check the artifact URL
+        if: github.event.workflow_run.conclusion == 'success'
+        run: |
+          echo "Artifact URL: ${{ steps.redirector.outputs.url }}"
+          curl --fail --location \
+            --header "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            "${{ steps.redirector.outputs.url }}" | grep "${{ github.event.workflow_run.head_sha }}"
