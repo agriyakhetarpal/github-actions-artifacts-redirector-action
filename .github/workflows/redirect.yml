@@ -13,6 +13,7 @@ jobs:
     permissions:
       statuses: write
       actions: read
+      contents: read
 
     steps:
       - name: Print event data
