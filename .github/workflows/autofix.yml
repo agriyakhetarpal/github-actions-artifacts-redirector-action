@@ -1,20 +1,20 @@
 name: autofix.ci
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.number }}-${{ github.event.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 on:
   pull_request:
-  push:
-    branches: ["main"]
-permissions:
-  contents: read
+
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
     name: Rebuild dist
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -25,4 +25,5 @@ jobs:
           package-manager-cache: false
       - run: npm install
       - run: npm run package
+      - uses: j178/prek-action@0bb87d7f00b0c99306c8bcb8b8beba1eb581c037 # v1.1.1
       - uses: autofix-ci/action@7a166d7532b277f34e16238930461bf77f9d7ed8 # v1.3.3
