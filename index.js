@@ -93,8 +93,10 @@ async function run() {
 
     if (commitState === "pending") {
       description = `Waiting for ${workflowRun.name} …`;
-    } else if (commitState === "success") {
-      // Query the artifacts for this run
+    } else {
+      // Query the artifacts for this run (on both success and failure,
+      // since artifacts may still be uploaded when the build fails via
+      // `if: always()` on the upload step)
       const { data } = await client.rest.actions.listWorkflowRunArtifacts({
         owner,
         repo,
@@ -135,7 +137,9 @@ async function run() {
         // file at this URL so the browser opens it directly (HTML, image, etc.)
         // For v4/v5/v6 (zipped), this URL will trigger a zip download (TODO test if that will work or not).
         targetUrl = `https://github.com/${owner}/${repo}/actions/runs/${runId}/artifacts/${artifact.id}`;
-        description = `Link to ${artifact.name}`;
+        description = commitState === "success"
+          ? `Link to ${artifact.name}`
+          : `${workflowRun.name} failed — see ${artifact.name}`;
         core.setOutput("url", targetUrl);
         core.debug(`artifact URL: ${targetUrl}`);
       } else {
@@ -144,11 +148,10 @@ async function run() {
             ? `Artifact "${artifactName}" not found in run ${runId}. Falling back to run URL.`
             : `No artifacts found in run ${runId}. Falling back to run URL.`,
         );
-        description = "Artifact not found — see run";
+        description = commitState === "success"
+          ? "Artifact not found — see run"
+          : `${workflowRun.name} did not succeed`;
       }
-    } else {
-      // failure / error
-      description = `${workflowRun.name} did not succeed`;
     }
 
     // ------------------------------------------------------------------
