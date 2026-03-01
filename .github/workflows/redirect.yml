@@ -1,6 +1,6 @@
 name: GitHub Actions artifacts redirector self-test
 
-on:
+on: # zizmor: ignore[dangerous-triggers] workflow_run only reads artifact metadata via API, never executes untrusted code
   workflow_run:
     workflows: ["Build test artifact for previewing"] # note: should match the `name:` field in `build.yml`
     types: [requested, in_progress, completed]
