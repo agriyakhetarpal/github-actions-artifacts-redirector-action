@@ -1,4 +1,4 @@
-name: "github-actions-artifacts-redirector"
+name: "github-actions-artifacts-redirector-action"
 description: "Create a commit status with a direct link to a GitHub Actions artifact"
 branding:
   icon: check
