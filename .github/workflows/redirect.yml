@@ -28,7 +28,7 @@ jobs:
 
       # This repo uses the action from its own root directory for self-testing.
       # GitHub Action users should NOT do this — use the published tag instead:
-      #   uses: agriyakhetarpal/github-actions-artifacts-redirector-action@v1
+      #   uses: agriyakhetarpal/github-actions-artifacts-redirector-action@683d25ace2cb0aefe8e6719c39c2ac7f3d22dd8c # v1.0.0
       #
       # We check out the head_sha of the workflow that triggered us (i.e. the
       # PR branch) so that `uses: ./` below runs the PR's version of the action,

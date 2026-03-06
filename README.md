@@ -21,15 +21,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/setup-python@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: "3.12"
       - run: pip install pytest pytest-html
       - run: pytest --html=test-report.html --self-contained-html
 
-      # use `upload-artifact@v7` or later with `archive: false` for a browser-viewable single file
-      # `if: always()` ensures the report is uploaded even when tests fail
-      - uses: actions/upload-artifact@v7
+      # use `upload-artifact@v7` or later with `archive: false` for a
+      # browser-viewable single file. The `if: always()` check ensures
+      # the report is uploaded even when tests fail.
+      is uploaded even when tests fail
+      - uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         if: always()
         with:
           path: test-report.html
@@ -49,8 +53,12 @@ name: View test report here
 
 on:
   workflow_run:
-    workflows: ["Test Suite"] # must match the build workflow's `name:` exactly, i.e., "Test Suite" and not "tests" or any other variation
-    types: [requested, in_progress, completed] # or just `completed` if you only want it to show up after "Test Suite" completes
+    # must match the build workflow's `name:` exactly, i.e., "Test Suite", and
+    # not "tests", or any other variation
+    workflows: ["Test Suite"]
+    # or just `completed`, if you would only want it to show up after
+    # "Test Suite" completes and not when it is pending/in progress.
+    types: [requested, in_progress, completed]
 
 permissions: {}
 
@@ -61,7 +69,7 @@ jobs:
       statuses: write
       actions: read
     steps:
-      - uses: agriyakhetarpal/github-actions-artifacts-redirector-action@v1
+      - uses: agriyakhetarpal/github-actions-artifacts-redirector-action@683d25ace2cb0aefe8e6719c39c2ac7f3d22dd8c # v1.0.0
         id: redirect
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
