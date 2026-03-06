@@ -4,6 +4,25 @@ This is a GitHub Action to add a GitHub CI job status link directly to a GitHub 
 
 When a build workflow uploads an artifact, this action will create a named entry in the checks list for a pull request, and in a corresponding commit, whose **Details** link opens the artifact directly in your browser. This is possible to the new [`upload-artifact@v7`](https://github.com/actions/upload-artifact/releases/tag/v7.0.0) release and its `archive: false` input, with which single-file artifacts (HTML docs previews, coverage reports, images) can be rendered directly without downloading an archive and extracting it.
 
+## Security note
+
+> [!IMPORTANT]
+> Static analysis tools for GitHub Actions, such as [Zizmor](https://zizmor.sh/), will flag this action for responding to the `workflow_run` event (see https://docs.zizmor.sh/audits/#dangerous-triggers). However, this trigger is required for this redirector to work, as it is the only mechanism GitHub provides for one workflow to react to the completion of another workflow and get URL(s) to its generated artifact(s). That being said, this action is safe to use in your repository:
+>
+> 1. **No untrusted code is checked out or executed.** The recommended redirector workflow below, i.e., the one that uses `workflow_run`, never checks out PR code, and it only runs the published action from a tagged release here.
+> 2. **The artifact content is never downloaded or evaluated.** The action calls the GitHub REST API to read artifact _metadata_ (name and ID) and constructs a URL. It never downloads, parses, or executes the contents of the artifact.
+>
+> To suppress the Zizmor finding, you may add an inline ignore comment in your redirector workflow:
+>
+> ```yaml
+> on: # zizmor: ignore[dangerous-triggers]
+>   workflow_run:
+> ```
+>
+> However, please ensure that you **must not** check out or execute any untrusted code in the redirector workflow, or any sensitive post-processing steps. The security of this pattern depends on the redirector workflow remaining a thin API wrapper, and being limited to running this action.
+>
+> Please feel free to reach out via a GitHub issue if you have any security concerns or suggestions.
+
 ## Usage
 
 ### 1. Configure your build workflow (which uploads the artifact)
