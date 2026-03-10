@@ -22,7 +22,7 @@ repos:
         args: [--prose-wrap=preserve]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: a27a2e47c7751b639d2b5badf0ef6ff11fee893f # frozen: v0.15.4
+    rev: b969e2851312ca2b24bbec879ba4954341d1bd12 # frozen: v0.15.5
     hooks:
       - id: ruff
         args:
@@ -35,7 +35,7 @@ repos:
       - id: ruff-format
 
   - repo: https://github.com/woodruffw/zizmor-pre-commit
-    rev: b546b77c44c466a54a42af5499dcc0dcc1a3193f # frozen: v1.22.0
+    rev: ea2eb407b4cbce87cf0d502f36578950494f5ac9 # frozen: v1.23.1
     hooks:
       - id: zizmor
         args: [--pedantic, --fix=safe]
