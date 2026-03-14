@@ -73,12 +73,13 @@ jobs:
       # verify the artifact is reachable to us.
       - name: Check the artifact URL
         if: github.event.workflow_run.conclusion == 'success'
-        run: |
-          echo "Artifact URL: ${STEPS_REDIRECTOR_OUTPUTS_URL}"
-          curl --fail --location \
-            --header "Authorization: Bearer ${SECRETS_GITHUB_TOKEN}" \
-            "${STEPS_REDIRECTOR_OUTPUTS_URL}" | grep "${GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA}"
         env:
-          SECRETS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          STEPS_REDIRECTOR_OUTPUTS_URL: ${{ steps.redirector.outputs.url }}
-          GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ARTIFACT_URL: ${{ steps.redirector.outputs.url }}
+          GH_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "Artifact URL: ${ARTIFACT_URL}"
+          ARTIFACT_ID="${ARTIFACT_URL##*/}"
+          echo "Artifact ID: ${ARTIFACT_ID}"
+          gh api "repos/${GH_REPOSITORY}/actions/artifacts/${ARTIFACT_ID}" \
+            --jq '.name, .size_in_bytes, .expired'
