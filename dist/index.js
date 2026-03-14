@@ -4137,6 +4137,26 @@ import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
       [kSecureProxyConnectionError] = true;
     }
 
+    const kMessageSizeExceededError = Symbol.for(
+      "undici.error.UND_ERR_WS_MESSAGE_SIZE_EXCEEDED",
+    );
+    class MessageSizeExceededError extends UndiciError {
+      constructor(message) {
+        super(message);
+        this.name = "MessageSizeExceededError";
+        this.message = message || "Max decompressed message size exceeded";
+        this.code = "UND_ERR_WS_MESSAGE_SIZE_EXCEEDED";
+      }
+
+      static [Symbol.hasInstance](instance) {
+        return instance && instance[kMessageSizeExceededError] === true;
+      }
+
+      get [kMessageSizeExceededError]() {
+        return true;
+      }
+    }
+
     module.exports = {
       AbortError,
       HTTPParserError,
@@ -4161,6 +4181,7 @@ import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
       RequestRetryError,
       ResponseError,
       SecureProxyConnectionError,
+      MessageSizeExceededError,
     };
 
     /***/
@@ -4238,6 +4259,10 @@ import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
 
         if (upgrade && typeof upgrade !== "string") {
           throw new InvalidArgumentError("upgrade must be a string");
+        }
+
+        if (upgrade && !isValidHeaderValue(upgrade)) {
+          throw new InvalidArgumentError("invalid upgrade header");
         }
 
         if (
@@ -4564,16 +4589,19 @@ import { createRequire as __WEBPACK_EXTERNAL_createRequire } from "module";
         val = `${val}`;
       }
 
-      if (request.host === null && headerName === "host") {
+      if (headerName === "host") {
+        if (request.host !== null) {
+          throw new InvalidArgumentError("duplicate host header");
+        }
         if (typeof val !== "string") {
           throw new InvalidArgumentError("invalid host header");
         }
         // Consumed by Client
         request.host = val;
-      } else if (
-        request.contentLength === null &&
-        headerName === "content-length"
-      ) {
+      } else if (headerName === "content-length") {
+        if (request.contentLength !== null) {
+          throw new InvalidArgumentError("duplicate content-length header");
+        }
         request.contentLength = parseInt(val, 10);
         if (!Number.isFinite(request.contentLength)) {
           throw new InvalidArgumentError("invalid content-length header");
@@ -28840,10 +28868,14 @@ ${pendingInterceptorsFormatter.format(pending)}
     const { createInflateRaw, Z_DEFAULT_WINDOWBITS } =
       __nccwpck_require__(8522);
     const { isValidClientWindowBits } = __nccwpck_require__(8625);
+    const { MessageSizeExceededError } = __nccwpck_require__(8707);
 
     const tail = Buffer.from([0x00, 0x00, 0xff, 0xff]);
     const kBuffer = Symbol("kBuffer");
     const kLength = Symbol("kLength");
+
+    // Default maximum decompressed message size: 4 MB
+    const kDefaultMaxDecompressedSize = 4 * 1024 * 1024;
 
     class PerMessageDeflate {
       /** @type {import('node:zlib').InflateRaw} */
@@ -28851,13 +28883,28 @@ ${pendingInterceptorsFormatter.format(pending)}
 
       #options = {};
 
-      constructor(extensions) {
+      /** @type {number} */
+      #maxDecompressedSize;
+
+      /** @type {boolean} */
+      #aborted = false;
+
+      /** @type {Function|null} */
+      #currentCallback = null;
+
+      /**
+       * @param {Map<string, string>} extensions
+       * @param {{ maxDecompressedMessageSize?: number }} [options]
+       */
+      constructor(extensions, options = {}) {
         this.#options.serverNoContextTakeover = extensions.has(
           "server_no_context_takeover",
         );
         this.#options.serverMaxWindowBits = extensions.get(
           "server_max_window_bits",
         );
+        this.#maxDecompressedSize =
+          options.maxDecompressedMessageSize ?? kDefaultMaxDecompressedSize;
       }
 
       decompress(chunk, fin, callback) {
@@ -28865,6 +28912,11 @@ ${pendingInterceptorsFormatter.format(pending)}
         // 1.  Append 4 octets of 0x00 0x00 0xff 0xff to the tail end of the
         //     payload of the message.
         // 2.  Decompress the resulting data using DEFLATE.
+
+        if (this.#aborted) {
+          callback(new MessageSizeExceededError());
+          return;
+        }
 
         if (!this.#inflate) {
           let windowBits = Z_DEFAULT_WINDOWBITS;
@@ -28879,13 +28931,37 @@ ${pendingInterceptorsFormatter.format(pending)}
             windowBits = Number.parseInt(this.#options.serverMaxWindowBits);
           }
 
-          this.#inflate = createInflateRaw({ windowBits });
+          try {
+            this.#inflate = createInflateRaw({ windowBits });
+          } catch (err) {
+            callback(err);
+            return;
+          }
           this.#inflate[kBuffer] = [];
           this.#inflate[kLength] = 0;
 
           this.#inflate.on("data", (data) => {
-            this.#inflate[kBuffer].push(data);
+            if (this.#aborted) {
+              return;
+            }
+
             this.#inflate[kLength] += data.length;
+
+            if (this.#inflate[kLength] > this.#maxDecompressedSize) {
+              this.#aborted = true;
+              this.#inflate.removeAllListeners();
+              this.#inflate.destroy();
+              this.#inflate = null;
+
+              if (this.#currentCallback) {
+                const cb = this.#currentCallback;
+                this.#currentCallback = null;
+                cb(new MessageSizeExceededError());
+              }
+              return;
+            }
+
+            this.#inflate[kBuffer].push(data);
           });
 
           this.#inflate.on("error", (err) => {
@@ -28894,12 +28970,17 @@ ${pendingInterceptorsFormatter.format(pending)}
           });
         }
 
+        this.#currentCallback = callback;
         this.#inflate.write(chunk);
         if (fin) {
           this.#inflate.write(tail);
         }
 
         this.#inflate.flush(() => {
+          if (this.#aborted || !this.#inflate) {
+            return;
+          }
+
           const full = Buffer.concat(
             this.#inflate[kBuffer],
             this.#inflate[kLength],
@@ -28907,6 +28988,7 @@ ${pendingInterceptorsFormatter.format(pending)}
 
           this.#inflate[kBuffer].length = 0;
           this.#inflate[kLength] = 0;
+          this.#currentCallback = null;
 
           callback(null, full);
         });
@@ -28958,16 +29040,25 @@ ${pendingInterceptorsFormatter.format(pending)}
       /** @type {Map<string, PerMessageDeflate>} */
       #extensions;
 
-      constructor(ws, extensions) {
+      /** @type {{ maxDecompressedMessageSize?: number }} */
+      #options;
+
+      /**
+       * @param {import('./websocket').WebSocket} ws
+       * @param {Map<string, string>|null} extensions
+       * @param {{ maxDecompressedMessageSize?: number }} [options]
+       */
+      constructor(ws, extensions, options = {}) {
         super();
 
         this.ws = ws;
         this.#extensions = extensions == null ? new Map() : extensions;
+        this.#options = options;
 
         if (this.#extensions.has("permessage-deflate")) {
           this.#extensions.set(
             "permessage-deflate",
-            new PerMessageDeflate(extensions),
+            new PerMessageDeflate(extensions, options),
           );
         }
       }
@@ -29119,6 +29210,7 @@ ${pendingInterceptorsFormatter.format(pending)}
 
             const buffer = this.consume(8);
             const upper = buffer.readUInt32BE(0);
+            const lower = buffer.readUInt32BE(4);
 
             // 2^31 is the maximum bytes an arraybuffer can contain
             // on 32-bit systems. Although, on 64-bit systems, this is
@@ -29126,7 +29218,7 @@ ${pendingInterceptorsFormatter.format(pending)}
             // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Errors/Invalid_array_length
             // https://source.chromium.org/chromium/chromium/src/+/main:v8/src/common/globals.h;drc=1946212ac0100668f14eb9e2843bdd846e510a1e;bpv=1;bpt=1;l=1275
             // https://source.chromium.org/chromium/chromium/src/+/main:v8/src/objects/js-array-buffer.h;l=34;drc=1946212ac0100668f14eb9e2843bdd846e510a1e
-            if (upper > 2 ** 31 - 1) {
+            if (upper !== 0 || lower > 2 ** 31 - 1) {
               failWebsocketConnection(
                 this.ws,
                 "Received payload length > 2^31 bytes.",
@@ -29134,9 +29226,7 @@ ${pendingInterceptorsFormatter.format(pending)}
               return;
             }
 
-            const lower = buffer.readUInt32BE(4);
-
-            this.#info.payloadLength = (upper << 8) + lower;
+            this.#info.payloadLength = lower;
             this.#state = parserStates.READ_DATA;
           } else if (this.#state === parserStates.READ_DATA) {
             if (this.#byteOffset < this.#info.payloadLength) {
@@ -29172,12 +29262,7 @@ ${pendingInterceptorsFormatter.format(pending)}
                   .get("permessage-deflate")
                   .decompress(body, this.#info.fin, (error, data) => {
                     if (error) {
-                      closeWebSocketConnection(
-                        this.ws,
-                        1007,
-                        error.message,
-                        error.message.length,
-                      );
+                      failWebsocketConnection(this.ws, error.message);
                       return;
                     }
 
@@ -29796,6 +29881,12 @@ ${pendingInterceptorsFormatter.format(pending)}
      * @param {string} value
      */
     function isValidClientWindowBits(value) {
+      // Must have at least one character
+      if (value.length === 0) {
+        return false;
+      }
+
+      // Check all characters are ASCII digits
       for (let i = 0; i < value.length; i++) {
         const byte = value.charCodeAt(i);
 
@@ -29804,7 +29895,9 @@ ${pendingInterceptorsFormatter.format(pending)}
         }
       }
 
-      return true;
+      // Check numeric range: zlib requires windowBits in range 8-15
+      const num = Number.parseInt(value, 10);
+      return num >= 8 && num <= 15;
     }
 
     // https://nodejs.org/api/intl.html#detecting-internationalization-support
@@ -29899,6 +29992,9 @@ ${pendingInterceptorsFormatter.format(pending)}
       /** @type {SendQueue} */
       #sendQueue;
 
+      /** @type {{ maxDecompressedMessageSize?: number }} */
+      #options;
+
       /**
        * @param {string} url
        * @param {string|string[]} protocols
@@ -29985,6 +30081,11 @@ ${pendingInterceptorsFormatter.format(pending)}
 
         // 10. Set this's url to urlRecord.
         this[kWebSocketURL] = new URL(urlRecord.href);
+
+        // Store options for later use (e.g., maxDecompressedMessageSize)
+        this.#options = {
+          maxDecompressedMessageSize: options.maxDecompressedMessageSize,
+        };
 
         // 11. Let client be this's relevant settings object.
         const client = environmentSettingsObject.settingsObject;
@@ -30319,11 +30420,11 @@ ${pendingInterceptorsFormatter.format(pending)}
        * @see https://websockets.spec.whatwg.org/#feedback-from-the-protocol
        */
       #onConnectionEstablished(response, parsedExtensions) {
-        // processResponse is called when the "response’s header list has been received and initialized."
+        // processResponse is called when the "response's header list has been received and initialized."
         // once this happens, the connection is open
         this[kResponse] = response;
 
-        const parser = new ByteParser(this, parsedExtensions);
+        const parser = new ByteParser(this, parsedExtensions, this.#options);
         parser.on("drain", onParserDrain);
         parser.on("error", onParserError.bind(this));
 
@@ -30430,6 +30531,19 @@ ${pendingInterceptorsFormatter.format(pending)}
       {
         key: "headers",
         converter: webidl.nullableConverter(webidl.converters.HeadersInit),
+      },
+      {
+        key: "maxDecompressedMessageSize",
+        converter: webidl.nullableConverter((V) => {
+          V = webidl.converters["unsigned long long"](V);
+          if (V <= 0) {
+            throw webidl.errors.exception({
+              header: "WebSocket constructor",
+              message: "maxDecompressedMessageSize must be greater than 0",
+            });
+          }
+          return V;
+        }),
       },
     ]);
 
