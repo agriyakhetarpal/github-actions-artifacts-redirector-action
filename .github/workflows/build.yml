@@ -29,7 +29,7 @@ jobs:
           mkdir -p dist_artifacts
           envsubst '$COMMIT_SHA' < test_artifacts/preview.html > dist_artifacts/preview.html
           echo "Simulating a long artifact build... but not too long :D"
-          sleep 60
+          sleep 10
 
       - name: Upload the test artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
