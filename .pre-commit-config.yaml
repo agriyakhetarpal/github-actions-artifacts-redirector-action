@@ -15,14 +15,14 @@ repos:
       - id: trailing-whitespace
 
   - repo: https://github.com/rbubley/mirrors-prettier
-    rev: 06507ab9500d4a9919b5ebd76d9d5b7074f15c1f  # frozen: v3.8.4
+    rev: 06507ab9500d4a9919b5ebd76d9d5b7074f15c1f # frozen: v3.8.4
     hooks:
       - id: prettier
         types_or: [yaml, markdown, javascript]
         args: [--prose-wrap=preserve]
 
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: 3b3f7c3f57fe9925356faf5fe6230835138be230  # frozen: v0.15.17
+    rev: 3b3f7c3f57fe9925356faf5fe6230835138be230 # frozen: v0.15.17
     hooks:
       - id: ruff
         args:
