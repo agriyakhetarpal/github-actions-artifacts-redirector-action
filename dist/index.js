@@ -18748,16 +18748,14 @@ ${pendingInterceptorsFormatter.format(pending)}
       for (let i = 0; i < length; ++i) {
         const cp = boundary.charCodeAt(i);
 
-        if (
-          !(
-            (cp >= 0x30 && cp <= 0x39) ||
-            (cp >= 0x41 && cp <= 0x5a) ||
-            (cp >= 0x61 && cp <= 0x7a) ||
-            cp === 0x27 ||
-            cp === 0x2d ||
-            cp === 0x5f
-          )
-        ) {
+        if (!(
+          (cp >= 0x30 && cp <= 0x39) ||
+          (cp >= 0x41 && cp <= 0x5a) ||
+          (cp >= 0x61 && cp <= 0x7a) ||
+          cp === 0x27 ||
+          cp === 0x2d ||
+          cp === 0x5f
+        )) {
           return false;
         }
       }
@@ -24571,15 +24569,11 @@ ${pendingInterceptorsFormatter.format(pending)}
     function isValidReasonPhrase(statusText) {
       for (let i = 0; i < statusText.length; ++i) {
         const c = statusText.charCodeAt(i);
-        if (
-          !(
-            (
-              c === 0x09 || // HTAB
-              (c >= 0x20 && c <= 0x7e) || // SP / VCHAR
-              (c >= 0x80 && c <= 0xff)
-            ) // obs-text
-          )
-        ) {
+        if (!(
+          c === 0x09 || // HTAB
+          (c >= 0x20 && c <= 0x7e) || // SP / VCHAR
+          (c >= 0x80 && c <= 0xff) // obs-text
+        )) {
           return false;
         }
       }
