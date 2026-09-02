@@ -63,7 +63,7 @@ jobs:
       # or main's version for fork PRs (see checkout steps above).
       - name: Run the redirector action
         id: redirector
-        uses: ./
+        uses: $/
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           artifact-name: preview
